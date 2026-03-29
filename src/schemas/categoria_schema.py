@@ -1,11 +1,9 @@
-from typing import Literal
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 
 
 class CategoriaCreate(BaseModel):
     categoria: str = Field(min_length=2, max_length=100)
-    tipo: Literal["fixa", "parcelada", "ambas"] = "ambas"
     orcamento_mensal: Decimal | None = Field(default=None, ge=0)
     essencial: bool = False
 

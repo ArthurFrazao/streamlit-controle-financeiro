@@ -7,29 +7,19 @@ setup_logging()
 logger = get_logger(__name__)
 
 
-def listar_nomes_categorias(tipo: str | None = None) -> list[str]:
+def listar_nomes_categorias() -> list[str]:
     conn = get_connection()
     cursor = conn.cursor()
 
     logger.info("Buscando nomes das categorias no banco de dados")
 
-    if tipo and tipo != "ambas":
-        cursor.execute("""
-            SELECT categoria
-            FROM categorias
-            WHERE categoria IS NOT NULL
-              AND TRIM(categoria) <> ''
-              AND (tipo = ? OR tipo = 'ambas')
-            ORDER BY categoria
-        """, (tipo,))
-    else:
-        cursor.execute("""
-            SELECT categoria
-            FROM categorias
-            WHERE categoria IS NOT NULL
-              AND TRIM(categoria) <> ''
-            ORDER BY categoria
-        """)
+    cursor.execute("""
+        SELECT categoria
+        FROM categorias
+        WHERE categoria IS NOT NULL
+          AND TRIM(categoria) <> ''
+        ORDER BY categoria
+    """)
 
     rows = cursor.fetchall()
     conn.close()
@@ -44,7 +34,7 @@ def listar_categorias() -> list[dict]:
     logger.info("Buscando categorias completas no banco de dados")
 
     cursor.execute("""
-        SELECT id, categoria, tipo, orcamento_mensal, essencial
+        SELECT id, categoria, orcamento_mensal, essencial
         FROM categorias
         WHERE categoria IS NOT NULL
           AND TRIM(categoria) <> ''
@@ -58,9 +48,8 @@ def listar_categorias() -> list[dict]:
         {
             "ID": row[0],
             "Categoria": row[1],
-            "Tipo": row[2],
-            "Orçamento Mensal": row[3],
-            "Essencial": bool(row[4]),
+            "Orçamento Mensal": row[2],
+            "Essencial": bool(row[3]),
         }
         for row in rows
     ]
@@ -74,12 +63,11 @@ def inserir_categoria(categoria: CategoriaCreate) -> None:
 
     cursor.execute(
         """
-        INSERT INTO categorias (categoria, tipo, orcamento_mensal, essencial)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO categorias (categoria, orcamento_mensal, essencial)
+        VALUES (?, ?, ?)
         """,
         (
             categoria.categoria,
-            categoria.tipo,
             float(categoria.orcamento_mensal) if categoria.orcamento_mensal is not None else None,
             int(categoria.essencial),
         ),

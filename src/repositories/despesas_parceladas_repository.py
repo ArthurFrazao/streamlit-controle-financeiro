@@ -21,7 +21,8 @@ def listar_despesas_parceladas() -> pd.DataFrame:
             valor_total AS "Valor Total",
             valor_parcela AS "Valor Parcela",
             qtd_parcelas AS "Qtd. Parcelas",
-            parcela_atual AS "Parcela Atual"
+            parcela_atual AS "Parcela Atual",
+            cartao AS "cartao"
         FROM despesas_parceladas
         ORDER BY data DESC, id DESC
     """
@@ -44,8 +45,8 @@ def inserir_despesa_parcelada(despesa: DespesaParceladaCreate) -> None:
     cursor.execute(
         """
         INSERT INTO despesas_parceladas
-            (data, vencimento, descricao, categoria, valor_total, valor_parcela, qtd_parcelas, parcela_atual)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (data, vencimento, descricao, categoria, valor_total, valor_parcela, qtd_parcelas, parcela_atual, cartao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             despesa.data.isoformat() if despesa.data else None,
@@ -56,6 +57,7 @@ def inserir_despesa_parcelada(despesa: DespesaParceladaCreate) -> None:
             float(despesa.valor_parcela),
             despesa.qtd_parcelas,
             despesa.parcela_atual,
+            despesa.cartao
         ),
     )
 
@@ -74,6 +76,7 @@ def atualizar_despesa_parcelada(
     parcela_atual: int,
     data,
     vencimento,
+    cartao
 ):
     conn = get_connection()
     cursor = conn.cursor()
@@ -91,7 +94,8 @@ def atualizar_despesa_parcelada(
             qtd_parcelas = ?,
             parcela_atual = ?,
             data = ?,
-            vencimento = ?
+            vencimento = ?,
+            cartao = ?
         WHERE id = ?
         """,
         (
@@ -103,6 +107,7 @@ def atualizar_despesa_parcelada(
             parcela_atual,
             data.isoformat() if data else None,
             vencimento.isoformat() if vencimento else None,
+            cartao,
             despesa_id,
         ),
     )

@@ -18,7 +18,8 @@ def listar_despesas_fixas() -> pd.DataFrame:
             data AS "Data",
             descricao AS "Descrição",
             categoria AS "Categoria",
-            valor AS "Valor"
+            valor AS "Valor",
+            cartao AS "Cartao"
         FROM despesas_fixas
         ORDER BY data DESC, id DESC
     """
@@ -40,8 +41,8 @@ def inserir_despesa_fixa(despesa: DespesaFixaCreate) -> None:
     logger.info(f"Inserindo despesa fixa={despesa.descricao}")
     cursor.execute(
         """
-        INSERT INTO despesas_fixas (data, vencimento, descricao, categoria, valor)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO despesas_fixas (data, vencimento, descricao, categoria, valor, cartao)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
             despesa.data.isoformat() if despesa.data else None,
@@ -49,6 +50,7 @@ def inserir_despesa_fixa(despesa: DespesaFixaCreate) -> None:
             despesa.descricao,
             despesa.categoria,
             float(despesa.valor),
+            despesa.cartao
         ),
     )
 
@@ -63,6 +65,8 @@ def atualizar_despesa_fixa(
     categoria: str,
     valor: Decimal,
     data,
+    vencimento: str,
+    cartao: str
 ):
     conn = get_connection()
     cursor = conn.cursor()
@@ -76,7 +80,9 @@ def atualizar_despesa_fixa(
             descricao = ?,
             categoria = ?,
             valor = ?,
-            data = ?
+            data = ?,
+            vencimento = ?,
+            cartao = ?
         WHERE id = ?
         """,
         (
@@ -84,7 +90,9 @@ def atualizar_despesa_fixa(
             categoria,
             float(valor),
             data.isoformat() if data else None,
-            despesa_id,
+            vencimento.isoformat() if data else None,
+            cartao,
+            despesa_id
         ),
     )
 

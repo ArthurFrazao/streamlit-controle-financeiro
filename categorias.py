@@ -41,16 +41,6 @@ def renderizar_formulario_categoria():
         with st.form("form_nova_categoria", clear_on_submit=True):
             categoria = st.text_input("Categoria")
 
-            tipo = st.selectbox(
-                "Tipo",
-                options=["ambas", "fixa", "parcelada"],
-                format_func=lambda x: {
-                    "ambas": "Ambas",
-                    "fixa": "Despesa fixa",
-                    "parcelada": "Despesa parcelada",
-                }[x],
-            )
-
             orcamento_mensal = st.number_input(
                 "Orçamento mensal (opcional)",
                 min_value=0.0,
@@ -73,7 +63,6 @@ def renderizar_formulario_categoria():
             try:
                 nova_categoria = CategoriaCreate(
                     categoria=categoria,
-                    tipo=tipo,
                     orcamento_mensal=Decimal(str(orcamento_mensal)) if orcamento_mensal > 0 else None,
                     essencial=essencial,
                 )

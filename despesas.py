@@ -17,15 +17,7 @@ from src.repositories.despesas_parceladas_repository import (
 )
 from src.schemas.despesa_fixa_schema import DespesaFixaCreate
 from src.schemas.despesa_parcelada_schema import DespesaParceladaCreate
-
-
-# =========================
-# HELPERS
-# =========================
-def reset_keys(*keys):
-    for key in keys:
-        st.session_state.pop(key, None)
-
+from src.repositories.cartoes_repository import listar_nomes_cartoes
 
 # =========================
 # KEYS DOS FORMULÁRIOS
@@ -36,6 +28,7 @@ KEYS_FORM_DESPESA_FIXA = (
     "fixa_descricao_input",
     "fixa_categoria_input",
     "fixa_valor_input",
+    "fixa_cartao_input"
 )
 
 KEYS_FORM_DESPESA_PARCELADA = (
@@ -47,7 +40,17 @@ KEYS_FORM_DESPESA_PARCELADA = (
     "parc_valor_parcela_input",
     "parc_qtd_parcelas_input",
     "parc_parcela_atual_input",
+    "parc_cartao_input"
 )
+
+
+def reset_keys(*keys):
+    for key in keys:
+        st.session_state.pop(key, None)
+
+
+def safe_index(lista, valor, default=0):
+    return lista.index(valor) if valor in lista else default
 
 
 # =========================
@@ -74,6 +77,9 @@ def inicializar_estados():
 
     if "categorias_despesa" not in st.session_state:
         st.session_state.categorias_despesa = listar_nomes_categorias()
+
+    if "cartoes" not in st.session_state:
+        st.session_state.cartoes = listar_nomes_cartoes()
 
     if "filtro_reset_counter_fixa" not in st.session_state:
         st.session_state.filtro_reset_counter_fixa = 0
@@ -212,13 +218,13 @@ def fechar_formulario_editar_despesa_parcelada():
 # =========================
 def carregar_botao_adicionar_despesa_fixa(col):
     if col.button("Adicionar despesa fixa", width="stretch"):
-        st.session_state.categorias_despesa = listar_nomes_categorias(tipo="fixa")
+        st.session_state.categorias_despesa = listar_nomes_categorias()
         abrir_formulario_adicionar_despesa_fixa()
 
 
 def carregar_botao_editar_despesa_fixa(col):
     if col.button("Editar despesa fixa", width="stretch"):
-        st.session_state.categorias_despesa = listar_nomes_categorias(tipo="fixa")
+        st.session_state.categorias_despesa = listar_nomes_categorias()
         abrir_formulario_editar_despesa_fixa()
 
 
@@ -227,13 +233,13 @@ def carregar_botao_editar_despesa_fixa(col):
 # =========================
 def carregar_botao_adicionar_despesa_parcelada(col):
     if col.button("Adicionar despesa parcelada", width="stretch"):
-        st.session_state.categorias_despesa = listar_nomes_categorias(tipo="parcelada")
+        st.session_state.categorias_despesa = listar_nomes_categorias()
         abrir_formulario_adicionar_despesa_parcelada()
 
 
 def carregar_botao_editar_despesa_parcelada(col):
     if col.button("Editar despesa parcelada", width="stretch"):
-        st.session_state.categorias_despesa = listar_nomes_categorias(tipo="parcelada")
+        st.session_state.categorias_despesa = listar_nomes_categorias()
         abrir_formulario_editar_despesa_parcelada()
 
 
@@ -243,16 +249,19 @@ def carregar_botao_editar_despesa_parcelada(col):
 @st.dialog("Adicionar nova despesa fixa", dismissible=True, on_dismiss=fechar_formulario_adicionar_despesa_fixa)
 def renderizar_formulario_adicionar_despesa_fixa():
     categorias = st.session_state.categorias_despesa
-
-    if not categorias:
-        st.warning("Nenhuma categoria cadastrada.")
-        return
+    cartoes = st.session_state.cartoes
 
     descricao = st.text_input("Descrição", key="fixa_descricao_input")
     categoria = st.selectbox("Categoria", options=categorias, key="fixa_categoria_input")
     valor = st.number_input("Valor", min_value=0.01, step=0.01, format="%.2f", key="fixa_valor_input")
     data = st.date_input("Data", value=None, key="fixa_data_input")
     vencimento = st.date_input("Vencimento", value=None, key="fixa_vencimento_input")
+
+    if cartoes:
+        cartao = st.selectbox("Cartão", options=cartoes, key="fixa_cartao_input")
+    else:
+        st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
+        cartao = None
 
     col_confirmar, col_cancelar = st.columns(2)
 
@@ -268,6 +277,7 @@ def renderizar_formulario_adicionar_despesa_fixa():
                 descricao=descricao,
                 categoria=categoria,
                 valor=Decimal(str(valor)),
+                cartao=cartao
             )
 
             inserir_despesa_fixa(despesa)
@@ -291,6 +301,7 @@ def renderizar_formulario_adicionar_despesa_fixa():
 def renderizar_formulario_editar_despesa_fixa():
     df = st.session_state.df_despesas_fixas.sort_values(by=["ID"]).reset_index(drop=True)
     categorias = st.session_state.categorias_despesa
+    cartoes = st.session_state.cartoes
 
     if df.empty:
         st.warning("Nenhuma despesa fixa cadastrada.")
@@ -312,17 +323,31 @@ def renderizar_formulario_editar_despesa_fixa():
         categoria = st.selectbox(
             "Categoria",
             categorias,
-            index=categorias.index(despesa["Categoria"]),
+            index=safe_index(categorias, despesa["Categoria"]),
             key="fixa_categoria_input",
         )
         valor = st.number_input("Valor", value=float(despesa["Valor"]), key="fixa_valor_input")
         data = st.date_input("Data", value=despesa["Data"], key="fixa_data_input")
         vencimento = st.date_input("Vencimento", value=despesa["Vencimento"], key="fixa_vencimento_input")
 
+        # Cartão com índice inicial se existir
+        if cartoes:
+            cartao_atual = despesa.get("Cartão")
+            cartao_index = cartoes.index(cartao_atual) if cartao_atual and cartao_atual in cartoes else 0
+            cartao = st.selectbox(
+                "Cartão",
+                cartoes,
+                index=cartao_index,
+                key="fixa_cartao_input",
+            )
+        else:
+            st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
+            cartao = None
+
         col_editar, col_cancelar = st.columns(2)
 
         if col_editar.button("Salvar alterações", width="stretch", key="fixa_edit_salvar"):
-            atualizar_despesa_fixa(despesa_id, descricao, categoria, Decimal(str(valor)), data)
+            atualizar_despesa_fixa(despesa_id, descricao, categoria, Decimal(str(valor)), data, vencimento, cartao)
             refresh_despesas_fixas()
             fechar_formulario_editar_despesa_fixa()
             st.success("Despesa fixa atualizada com sucesso.")
@@ -343,13 +368,11 @@ def renderizar_formulario_editar_despesa_fixa():
 # =========================
 # DIALOG ADICIONAR — DESPESA PARCELADA
 # =========================
-@st.dialog("Adicionar nova despesa parcelada", dismissible=True, on_dismiss=fechar_formulario_adicionar_despesa_parcelada)
+@st.dialog("Adicionar nova despesa parcelada", dismissible=True,
+           on_dismiss=fechar_formulario_adicionar_despesa_parcelada)
 def renderizar_formulario_adicionar_despesa_parcelada():
     categorias = st.session_state.categorias_despesa
-
-    if not categorias:
-        st.warning("Nenhuma categoria cadastrada.")
-        return
+    cartoes = st.session_state.cartoes
 
     descricao = st.text_input("Descrição", key="parc_descricao_input")
     categoria = st.selectbox("Categoria", options=categorias, key="parc_categoria_input")
@@ -359,11 +382,19 @@ def renderizar_formulario_adicionar_despesa_parcelada():
     parcela_atual = col2.number_input("Parcela atual", min_value=1, step=1, key="parc_parcela_atual_input")
 
     col3, col4 = st.columns(2)
-    valor_total = col3.number_input("Valor total", min_value=0.01, step=0.01, format="%.2f", key="parc_valor_total_input")
-    valor_parcela = col4.number_input("Valor da parcela", min_value=0.01, step=0.01, format="%.2f", key="parc_valor_parcela_input")
+    valor_total = col3.number_input("Valor total", min_value=0.01, step=0.01, format="%.2f",
+                                    key="parc_valor_total_input")
+    valor_parcela = col4.number_input("Valor da parcela", min_value=0.01, step=0.01, format="%.2f",
+                                      key="parc_valor_parcela_input")
 
     data = st.date_input("Data", value=None, key="parc_data_input")
     vencimento = st.date_input("Vencimento", value=None, key="parc_vencimento_input")
+
+    if cartoes:
+        cartao = st.selectbox("Cartão", options=cartoes, key="parc_cartao_input")
+    else:
+        st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
+        cartao = None
 
     col_confirmar, col_cancelar = st.columns(2)
 
@@ -382,6 +413,7 @@ def renderizar_formulario_adicionar_despesa_parcelada():
                 valor_parcela=Decimal(str(valor_parcela)),
                 qtd_parcelas=int(qtd_parcelas),
                 parcela_atual=int(parcela_atual),
+                cartao=cartao
             )
 
             inserir_despesa_parcelada(despesa)
@@ -405,6 +437,7 @@ def renderizar_formulario_adicionar_despesa_parcelada():
 def renderizar_formulario_editar_despesa_parcelada():
     df = st.session_state.df_despesas_parceladas.sort_values(by=["ID"]).reset_index(drop=True)
     categorias = st.session_state.categorias_despesa
+    cartoes = st.session_state.cartoes
 
     if df.empty:
         st.warning("Nenhuma despesa parcelada cadastrada.")
@@ -467,6 +500,20 @@ def renderizar_formulario_editar_despesa_parcelada():
         data = st.date_input("Data", value=despesa["Data"], key="parc_data_input")
         vencimento = st.date_input("Vencimento", value=despesa["Vencimento"], key="parc_vencimento_input")
 
+        # Cartão com índice inicial se existir
+        if cartoes:
+            cartao_atual = despesa.get("Cartão")
+            cartao_index = cartoes.index(cartao_atual) if cartao_atual and cartao_atual in cartoes else 0
+            cartao = st.selectbox(
+                "Cartão",
+                cartoes,
+                index=cartao_index,
+                key="parc_cartao_input",
+            )
+        else:
+            st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
+            cartao = None
+
         col_editar, col_cancelar = st.columns(2)
 
         if col_editar.button("Salvar alterações", width="stretch", key="parc_edit_salvar"):
@@ -480,6 +527,7 @@ def renderizar_formulario_editar_despesa_parcelada():
                 int(parcela_atual),
                 data,
                 vencimento,
+                cartao
             )
             refresh_despesas_parceladas()
             fechar_formulario_editar_despesa_parcelada()

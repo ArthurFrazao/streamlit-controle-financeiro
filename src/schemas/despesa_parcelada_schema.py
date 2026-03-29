@@ -12,6 +12,7 @@ class DespesaParceladaCreate(BaseModel):
     valor_parcela: Decimal = Field(gt=0)
     qtd_parcelas: int = Field(ge=1)
     parcela_atual: int = Field(ge=1)
+    cartao: str = Field(min_length=2, max_length=20)
 
     @field_validator("descricao")
     @classmethod

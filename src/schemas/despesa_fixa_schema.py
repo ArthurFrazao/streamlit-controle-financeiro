@@ -8,6 +8,7 @@ class DespesaFixaCreate(BaseModel):
     vencimento: date
     descricao: str = Field(min_length=2, max_length=120)
     categoria: str = Field(min_length=1, max_length=100)
+    cartao: str = Field(min_length=2, max_length=20)
     valor: Decimal = Field(gt=0)
 
     @field_validator("descricao")
