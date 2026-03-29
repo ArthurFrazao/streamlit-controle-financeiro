@@ -1,0 +1,23 @@
+# Python
+__pycache__
+*.pyc
+*.pyd
+*.pyo
+*.egg
+*.egg-info
+.Python
+build
+dist
+wheels
+.venv
+venv
+env
+
+data/
+
+# IDE-specific files (optional, uncomment as needed)
+.idea/ # For PyCharm/IntelliJ
+.vscode/ # For VS Code
+
+# Streamlit-specific
+.streamlit/secrets.toml # Ignore sensitive information
