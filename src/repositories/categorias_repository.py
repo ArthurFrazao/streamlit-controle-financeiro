@@ -1,3 +1,4 @@
+import pandas as pd
 from decimal import Decimal
 from src.database.connection import get_connection
 from src.schemas.categoria_schema import CategoriaCreate
@@ -13,53 +14,37 @@ def listar_nomes_categorias() -> list[str]:
 
     logger.info("Buscando nomes das categorias no banco de dados")
 
-    cursor.execute("""
-        SELECT categoria
-        FROM categorias
-        WHERE categoria IS NOT NULL
-          AND TRIM(categoria) <> ''
-        ORDER BY categoria
-    """)
-
+    cursor.execute("SELECT categoria FROM categorias")
     rows = cursor.fetchall()
     conn.close()
 
     return [row[0] for row in rows]
 
 
-def listar_categorias() -> list[dict]:
+def listar_categorias() -> pd.DataFrame:
     conn = get_connection()
-    cursor = conn.cursor()
 
-    logger.info("Buscando categorias completas no banco de dados")
-
-    cursor.execute("""
-        SELECT id, categoria, orcamento_mensal, essencial
+    query = """
+        SELECT 
+            id AS "ID",
+            categoria AS "Categoria", 
+            orcamento_mensal AS "Orçamento Mensal", 
+            essencial AS "Essencial"
         FROM categorias
-        WHERE categoria IS NOT NULL
-          AND TRIM(categoria) <> ''
-        ORDER BY categoria
-    """)
+    """
 
-    rows = cursor.fetchall()
+    df = pd.read_sql_query(query, conn)
+    df["Essencial"] = df["Essencial"].astype("bool")
     conn.close()
 
-    return [
-        {
-            "ID": row[0],
-            "Categoria": row[1],
-            "Orçamento Mensal": row[2],
-            "Essencial": bool(row[3]),
-        }
-        for row in rows
-    ]
+    return df.sort_values(by=["ID"]).reset_index(drop=True)
 
 
 def inserir_categoria(categoria: CategoriaCreate) -> None:
     conn = get_connection()
     cursor = conn.cursor()
 
-    logger.info(f"Inserindo nova categoria: {categoria.categoria}")
+    logger.info(f"Inserindo categoria={categoria.categoria}")
 
     cursor.execute(
         """
@@ -68,10 +53,60 @@ def inserir_categoria(categoria: CategoriaCreate) -> None:
         """,
         (
             categoria.categoria,
-            float(categoria.orcamento_mensal) if categoria.orcamento_mensal is not None else None,
+            float(categoria.orcamento_mensal),
             int(categoria.essencial),
         ),
     )
 
     conn.commit()
     conn.close()
+    logger.info(f"Categoria={categoria.categoria} inserida com sucesso")
+
+
+def atualizar_categoria(
+    categoria_id: int,
+    categoria: str,
+    orcamento_mensal: Decimal,
+    essencial: bool
+):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    logger.info(f"Atualizando categoria ID={categoria_id}")
+
+    cursor.execute(
+        """
+        UPDATE categorias
+        SET
+            categoria = ?,
+            orcamento_mensal = ?,
+            essencial = ?
+        WHERE id = ?
+        """,
+        (
+            categoria,
+            float(orcamento_mensal),
+            essencial,
+            categoria_id,
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+    logger.info(f"Categoria ID={categoria_id} atualizada com sucesso")
+
+
+def excluir_categoria(categoria_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    logger.info(f"Excluindo categoria ID={categoria_id}")
+
+    cursor.execute(
+        "DELETE FROM categorias WHERE id = ?",
+        (categoria_id,),
+    )
+
+    conn.commit()
+    conn.close()
+    logger.info(f"Categoria ID={categoria_id} excluída com sucesso")

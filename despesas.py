@@ -3,6 +3,7 @@ import streamlit as st
 from pydantic import ValidationError
 
 from src.repositories.categorias_repository import listar_nomes_categorias
+from src.repositories.formas_repository import listar_formas
 from src.repositories.despesas_fixas_repository import (
     listar_despesas_fixas,
     inserir_despesa_fixa,
@@ -24,7 +25,7 @@ from src.repositories.cartoes_repository import listar_nomes_cartoes
 # =========================
 KEYS_FORM_DESPESA_FIXA = (
     "fixa_data_input",
-    "fixa_vencimento_input",
+    "fixa_forma_input",
     "fixa_descricao_input",
     "fixa_categoria_input",
     "fixa_valor_input",
@@ -33,7 +34,7 @@ KEYS_FORM_DESPESA_FIXA = (
 
 KEYS_FORM_DESPESA_PARCELADA = (
     "parc_data_input",
-    "parc_vencimento_input",
+    "parc_forma_input",
     "parc_descricao_input",
     "parc_categoria_input",
     "parc_valor_total_input",
@@ -52,6 +53,18 @@ def reset_keys(*keys):
 def safe_index(lista, valor, default=0):
     return lista.index(valor) if valor in lista else default
 
+
+def filtra_dataframe(dataframe, data_inicio, data_fim, categoria) -> pd.DataFrame:
+    df_filtrado = dataframe.copy()
+
+    if data_inicio:
+        df_filtrado = df_filtrado[df_filtrado["Data"] >= data_inicio]
+    if data_fim:
+        df_filtrado = df_filtrado[df_filtrado["Data"] <= data_fim]
+    if categoria != "Todas":
+        df_filtrado = df_filtrado[df_filtrado["Categoria"] == categoria]
+
+    return df_filtrado
 
 # =========================
 # ESTADOS
@@ -87,6 +100,9 @@ def inicializar_estados():
     if "filtro_reset_counter_parcelada" not in st.session_state:
         st.session_state.filtro_reset_counter_parcelada = 0
 
+    if "formas" not in st.session_state:
+        st.session_state.formas = listar_formas()
+
 
 def refresh_despesas_fixas():
     st.session_state.df_despesas_fixas = listar_despesas_fixas()
@@ -121,16 +137,7 @@ def aplicar_filtros_fixas(df, col):
             st.session_state.filtro_reset_counter_fixa += 1
             st.rerun()
 
-    df_filtrado = df.copy()
-
-    if data_inicio:
-        df_filtrado = df_filtrado[df_filtrado["Data"] >= data_inicio]
-    if data_fim:
-        df_filtrado = df_filtrado[df_filtrado["Data"] <= data_fim]
-    if categoria != "Todas":
-        df_filtrado = df_filtrado[df_filtrado["Categoria"] == categoria]
-
-    return df_filtrado
+    return filtra_dataframe(df, data_inicio, data_fim, categoria)
 
 
 def aplicar_filtros_parceladas(df, col):
@@ -155,16 +162,7 @@ def aplicar_filtros_parceladas(df, col):
             st.session_state.filtro_reset_counter_parcelada += 1
             st.rerun()
 
-    df_filtrado = df.copy()
-
-    if data_inicio:
-        df_filtrado = df_filtrado[df_filtrado["Data"] >= data_inicio]
-    if data_fim:
-        df_filtrado = df_filtrado[df_filtrado["Data"] <= data_fim]
-    if categoria != "Todas":
-        df_filtrado = df_filtrado[df_filtrado["Categoria"] == categoria]
-
-    return df_filtrado
+    return filtra_dataframe(df, data_inicio, data_fim, categoria)
 
 
 # =========================
@@ -250,15 +248,27 @@ def carregar_botao_editar_despesa_parcelada(col):
 def renderizar_formulario_adicionar_despesa_fixa():
     categorias = st.session_state.categorias_despesa
     cartoes = st.session_state.cartoes
+    formas = st.session_state.formas
 
-    descricao = st.text_input("Descrição", key="fixa_descricao_input")
-    categoria = st.selectbox("Categoria", options=categorias, key="fixa_categoria_input")
+    descricao = st.text_input("Descrição", key="fixa_descricao_input", placeholder="Descrição da despesa")
+    categoria = st.selectbox("Categoria", options=categorias, key="fixa_categoria_input", index=None, placeholder="Selecione a categoria")
     valor = st.number_input("Valor", min_value=0.01, step=0.01, format="%.2f", key="fixa_valor_input")
     data = st.date_input("Data", value=None, key="fixa_data_input")
-    vencimento = st.date_input("Vencimento", value=None, key="fixa_vencimento_input")
+    forma = st.selectbox("Forma", options=formas, key="fixa_forma_input", index=None, placeholder="Selecione a forma")
 
-    if cartoes:
-        cartao = st.selectbox("Cartão", options=cartoes, key="fixa_cartao_input")
+    # Bloquear cartão se forma for PIX
+    if len(cartoes) > 0:
+        cartao_desabilitado = forma == "PIX"
+        cartao = st.selectbox(
+            "Cartão",
+            options=cartoes,
+            key="fixa_cartao_input",
+            index=None,
+            placeholder="Não aplicável" if cartao_desabilitado else "Selecione o cartão",
+            disabled=cartao_desabilitado
+        )
+        if cartao_desabilitado:
+            cartao = None
     else:
         st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
         cartao = None
@@ -273,7 +283,7 @@ def renderizar_formulario_adicionar_despesa_fixa():
         try:
             despesa = DespesaFixaCreate(
                 data=data,
-                vencimento=vencimento,
+                forma=forma,
                 descricao=descricao,
                 categoria=categoria,
                 valor=Decimal(str(valor)),
@@ -302,6 +312,7 @@ def renderizar_formulario_editar_despesa_fixa():
     df = st.session_state.df_despesas_fixas.sort_values(by=["ID"]).reset_index(drop=True)
     categorias = st.session_state.categorias_despesa
     cartoes = st.session_state.cartoes
+    formas = st.session_state.formas
 
     if df.empty:
         st.warning("Nenhuma despesa fixa cadastrada.")
@@ -319,27 +330,33 @@ def renderizar_formulario_editar_despesa_fixa():
     if despesa_id:
         despesa = df[df["ID"] == despesa_id].iloc[0]
 
-        descricao = st.text_input("Descrição", value=despesa["Descrição"], key="fixa_descricao_input")
+        descricao = st.text_input("Descrição", value=despesa["Descrição"], key="fixa_descricao_input", placeholder="Descrição da despesa")
         categoria = st.selectbox(
             "Categoria",
             categorias,
             index=safe_index(categorias, despesa["Categoria"]),
             key="fixa_categoria_input",
+            placeholder="Selecione a categoria",
         )
         valor = st.number_input("Valor", value=float(despesa["Valor"]), key="fixa_valor_input")
         data = st.date_input("Data", value=despesa["Data"], key="fixa_data_input")
-        vencimento = st.date_input("Vencimento", value=despesa["Vencimento"], key="fixa_vencimento_input")
+        forma = st.selectbox("Forma", options=formas, key="fixa_forma_input", index=None, placeholder="Selecione a forma")
 
-        # Cartão com índice inicial se existir
-        if cartoes:
+        # Cartão com índice inicial se existir - bloqueado se forma for PIX
+        if len(cartoes) > 0:
             cartao_atual = despesa.get("Cartão")
             cartao_index = cartoes.index(cartao_atual) if cartao_atual and cartao_atual in cartoes else 0
+            cartao_desabilitado = forma == "PIX"
             cartao = st.selectbox(
                 "Cartão",
                 cartoes,
                 index=cartao_index,
                 key="fixa_cartao_input",
+                placeholder="Não aplicável" if cartao_desabilitado else "Selecione o cartão",
+                disabled=cartao_desabilitado
             )
+            if cartao_desabilitado:
+                cartao = None
         else:
             st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
             cartao = None
@@ -347,7 +364,7 @@ def renderizar_formulario_editar_despesa_fixa():
         col_editar, col_cancelar = st.columns(2)
 
         if col_editar.button("Salvar alterações", width="stretch", key="fixa_edit_salvar"):
-            atualizar_despesa_fixa(despesa_id, descricao, categoria, Decimal(str(valor)), data, vencimento, cartao)
+            atualizar_despesa_fixa(despesa_id, descricao, categoria, Decimal(str(valor)), data, forma, cartao)
             refresh_despesas_fixas()
             fechar_formulario_editar_despesa_fixa()
             st.success("Despesa fixa atualizada com sucesso.")
@@ -373,9 +390,10 @@ def renderizar_formulario_editar_despesa_fixa():
 def renderizar_formulario_adicionar_despesa_parcelada():
     categorias = st.session_state.categorias_despesa
     cartoes = st.session_state.cartoes
+    formas = st.session_state.formas
 
-    descricao = st.text_input("Descrição", key="parc_descricao_input")
-    categoria = st.selectbox("Categoria", options=categorias, key="parc_categoria_input")
+    descricao = st.text_input("Descrição", key="parc_descricao_input", placeholder="Descrição da despesa")
+    categoria = st.selectbox("Categoria", options=categorias, key="parc_categoria_input", index=None, placeholder="Selecione a categoria")
 
     col1, col2 = st.columns(2)
     qtd_parcelas = col1.number_input("Qtd. de parcelas", min_value=1, step=1, key="parc_qtd_parcelas_input")
@@ -388,10 +406,21 @@ def renderizar_formulario_adicionar_despesa_parcelada():
                                       key="parc_valor_parcela_input")
 
     data = st.date_input("Data", value=None, key="parc_data_input")
-    vencimento = st.date_input("Vencimento", value=None, key="parc_vencimento_input")
+    forma = st.selectbox("Forma", options=formas, key="parc_forma_input", index=None, placeholder="Selecione a forma")
 
-    if cartoes:
-        cartao = st.selectbox("Cartão", options=cartoes, key="parc_cartao_input")
+    # Bloquear cartão se forma for PIX
+    if len(cartoes) > 0:
+        cartao_desabilitado = forma == "PIX"
+        cartao = st.selectbox(
+            "Cartão",
+            options=cartoes,
+            key="parc_cartao_input",
+            index=None,
+            placeholder="Não aplicável" if cartao_desabilitado else "Selecione o cartão",
+            disabled=cartao_desabilitado
+        )
+        if cartao_desabilitado:
+            cartao = None
     else:
         st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
         cartao = None
@@ -406,7 +435,7 @@ def renderizar_formulario_adicionar_despesa_parcelada():
         try:
             despesa = DespesaParceladaCreate(
                 data=data,
-                vencimento=vencimento,
+                forma=forma,
                 descricao=descricao,
                 categoria=categoria,
                 valor_total=Decimal(str(valor_total)),
@@ -438,6 +467,7 @@ def renderizar_formulario_editar_despesa_parcelada():
     df = st.session_state.df_despesas_parceladas.sort_values(by=["ID"]).reset_index(drop=True)
     categorias = st.session_state.categorias_despesa
     cartoes = st.session_state.cartoes
+    formas = st.session_state.formas
 
     if df.empty:
         st.warning("Nenhuma despesa parcelada cadastrada.")
@@ -455,12 +485,13 @@ def renderizar_formulario_editar_despesa_parcelada():
     if despesa_id:
         despesa = df[df["ID"] == despesa_id].iloc[0]
 
-        descricao = st.text_input("Descrição", value=despesa["Descrição"], key="parc_descricao_input")
+        descricao = st.text_input("Descrição", value=despesa["Descrição"], key="parc_descricao_input", placeholder="Descrição da despesa")
         categoria = st.selectbox(
             "Categoria",
             categorias,
             index=categorias.index(despesa["Categoria"]),
             key="parc_categoria_input",
+            placeholder="Selecione uma categoria",
         )
 
         col1, col2 = st.columns(2)
@@ -498,18 +529,23 @@ def renderizar_formulario_editar_despesa_parcelada():
         )
 
         data = st.date_input("Data", value=despesa["Data"], key="parc_data_input")
-        vencimento = st.date_input("Vencimento", value=despesa["Vencimento"], key="parc_vencimento_input")
+        forma = st.selectbox("Forma", options=formas, key="parc_forma_input", index=None, placeholder="Selecione a forma")
 
-        # Cartão com índice inicial se existir
-        if cartoes:
+        # Cartão com índice inicial se existir - bloqueado se forma for PIX
+        if len(cartoes) > 0:
             cartao_atual = despesa.get("Cartão")
             cartao_index = cartoes.index(cartao_atual) if cartao_atual and cartao_atual in cartoes else 0
+            cartao_desabilitado = forma == "PIX"
             cartao = st.selectbox(
                 "Cartão",
                 cartoes,
                 index=cartao_index,
                 key="parc_cartao_input",
+                placeholder="Não aplicável" if cartao_desabilitado else "Selecione o cartão",
+                disabled=cartao_desabilitado
             )
+            if cartao_desabilitado:
+                cartao = None
         else:
             st.warning("Nenhum cartão cadastrado. Por favor, cadastre um cartão primeiro.")
             cartao = None
@@ -526,7 +562,7 @@ def renderizar_formulario_editar_despesa_parcelada():
                 int(qtd_parcelas),
                 int(parcela_atual),
                 data,
-                vencimento,
+                forma,
                 cartao
             )
             refresh_despesas_parceladas()
@@ -592,6 +628,7 @@ def renderizar_pagina():
     inicializar_estados()
 
     st.title("Despesas")
+    st.write("Gerencie despesas fixas mensais (como assinaturas e mensalidades) e despesas parceladas (compras divididas em várias vezes).")
 
     coluna_esquerda, coluna_direita = st.columns(2)
 

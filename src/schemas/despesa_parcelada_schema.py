@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 class DespesaParceladaCreate(BaseModel):
     data: date
-    vencimento: date
     descricao: str = Field(min_length=2, max_length=120)
     categoria: str = Field(min_length=1, max_length=100)
     valor_total: Decimal = Field(gt=0)
@@ -13,6 +12,7 @@ class DespesaParceladaCreate(BaseModel):
     qtd_parcelas: int = Field(ge=1)
     parcela_atual: int = Field(ge=1)
     cartao: str = Field(min_length=2, max_length=20)
+    forma: str = Field(min_length=2, max_length=20)
 
     @field_validator("descricao")
     @classmethod

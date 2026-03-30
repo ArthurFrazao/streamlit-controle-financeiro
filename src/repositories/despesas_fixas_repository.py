@@ -1,5 +1,6 @@
 import pandas as pd
 from decimal import Decimal
+from datetime import date
 from src.database.connection import get_connection
 from src.schemas.despesa_fixa_schema import DespesaFixaCreate
 from src.core.logging import setup_logging, get_logger
@@ -14,12 +15,12 @@ def listar_despesas_fixas() -> pd.DataFrame:
     query = """
         SELECT
             id AS "ID",
-            vencimento AS "Vencimento",
             data AS "Data",
             descricao AS "Descrição",
             categoria AS "Categoria",
             valor AS "Valor",
-            cartao AS "Cartao"
+            cartao AS "Cartao",
+            forma AS "Forma"
         FROM despesas_fixas
         ORDER BY data DESC, id DESC
     """
@@ -29,7 +30,6 @@ def listar_despesas_fixas() -> pd.DataFrame:
 
     if not df.empty:
         df["Data"] = pd.to_datetime(df["Data"], errors="coerce").dt.date
-        df["Vencimento"] = pd.to_datetime(df["Vencimento"], errors="coerce").dt.date
 
     return df.sort_values(by=["ID"]).reset_index(drop=True)
 
@@ -41,16 +41,16 @@ def inserir_despesa_fixa(despesa: DespesaFixaCreate) -> None:
     logger.info(f"Inserindo despesa fixa={despesa.descricao}")
     cursor.execute(
         """
-        INSERT INTO despesas_fixas (data, vencimento, descricao, categoria, valor, cartao)
+        INSERT INTO despesas_fixas (data, descricao, categoria, valor, cartao, forma)
         VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
             despesa.data.isoformat() if despesa.data else None,
-            despesa.vencimento.isoformat() if despesa.vencimento else None,
             despesa.descricao,
             despesa.categoria,
             float(despesa.valor),
-            despesa.cartao
+            despesa.cartao,
+            despesa.forma
         ),
     )
 
@@ -64,9 +64,9 @@ def atualizar_despesa_fixa(
     descricao: str,
     categoria: str,
     valor: Decimal,
-    data,
-    vencimento: str,
-    cartao: str
+    data: date,
+    cartao: str,
+    forma: str
 ):
     conn = get_connection()
     cursor = conn.cursor()
@@ -81,8 +81,8 @@ def atualizar_despesa_fixa(
             categoria = ?,
             valor = ?,
             data = ?,
-            vencimento = ?,
-            cartao = ?
+            cartao = ?,
+            forma = ?
         WHERE id = ?
         """,
         (
@@ -90,9 +90,9 @@ def atualizar_despesa_fixa(
             categoria,
             float(valor),
             data.isoformat() if data else None,
-            vencimento.isoformat() if data else None,
             cartao,
-            despesa_id
+            forma,
+            despesa_id,
         ),
     )
 

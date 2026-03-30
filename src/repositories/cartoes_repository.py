@@ -39,9 +39,6 @@ def listar_cartoes() -> pd.DataFrame:
     df = pd.read_sql_query(query, conn)
     conn.close()
 
-    if not df.empty:
-        df["Vencimento"] = pd.to_datetime(df["Vencimento"], errors="coerce").dt.date
-
     return df.sort_values(by=["ID"]).reset_index(drop=True)
 
 
@@ -57,7 +54,7 @@ def inserir_cartao(cartao: CartaoCreate) -> None:
         """,
         (
             cartao.nome,
-            cartao.vencimento.isoformat() if cartao.vencimento else None,
+            cartao.vencimento,
             float(cartao.limite),
             cartao.tipo
         ),
@@ -71,7 +68,7 @@ def inserir_cartao(cartao: CartaoCreate) -> None:
 def atualizar_cartao(
     cartao_id: int,
     nome: str,
-    vencimento: date,
+    vencimento: int,
     limite: Decimal,
     tipo: str,
 ):
@@ -92,7 +89,7 @@ def atualizar_cartao(
         """,
         (
             nome,
-            vencimento.isoformat() if vencimento else None,
+            vencimento,
             float(limite),
             tipo,
             cartao_id,

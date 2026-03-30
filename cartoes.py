@@ -88,12 +88,10 @@ def carregar_botao_editar_cartao(col):
 # =========================
 @st.dialog("Adicionar novo cartão", dismissible=True, on_dismiss=fechar_formulario_adicionar_cartao)
 def renderizar_formulario_adicionar_cartao():
-    cartoes = st.session_state.cartoes
-
-    nome = st.text_input("Nome", key="fixa_nome_input")
-    vencimento = st.date_input("Vencimento", value=None, key="fixa_vencimento_input")
+    nome = st.text_input("Nome", key="fixa_nome_input", placeholder="Nome do cartão")
+    vencimento = st.number_input("Vencimento", min_value=1, step=1, key="fixa_vencimento_input")
     limite = st.number_input("Limite", min_value=0.01, step=0.01, format="%.2f", key="fixa_limite_input")
-    tipo = st.selectbox("Categoria", options=["débito", "crédito"], key="fixa_tipo_input")
+    tipo = st.selectbox("Tipo", options=["débito", "crédito"], key="fixa_tipo_input", index=None, placeholder="Selecione o tipo")
 
     col_confirmar, col_cancelar = st.columns(2)
 
@@ -130,7 +128,6 @@ def renderizar_formulario_adicionar_cartao():
 @st.dialog("Editar cartão", dismissible=True, on_dismiss=fechar_formulario_editar_cartao)
 def renderizar_formulario_editar_cartao():
     df = st.session_state.df_cartoes.sort_values(by=["ID"]).reset_index(drop=True)
-    cartoes = st.session_state.cartoes
 
     if df.empty:
         st.warning("Nenhuma cartão cadastrado.")
@@ -149,8 +146,8 @@ def renderizar_formulario_editar_cartao():
         cartao = df[df["ID"] == cartao_id].iloc[0]
 
         opcoes_tipo = ["débito", "crédito"]
-        nome = st.text_input("Nome", value=cartao["Nome"], key="fixa_nome_input")
-        vencimento = st.date_input("Vencimento", value=cartao["Vencimento"], key="fixa_vencimento_input")
+        nome = st.text_input("Nome", value=cartao["Nome"], key="fixa_nome_input", placeholder="Nome do cartão")
+        vencimento = st.number_input("Vencimento", value=cartao["Vencimento"], key="fixa_vencimento_input")
         limite = st.number_input("Limite", value=float(cartao["Limite"]), key="fixa_valor_input")
         tipo = st.selectbox(
             "Tipo",
@@ -201,4 +198,5 @@ def carregar_pagina():
 def renderizar_pagina():
     inicializar_estados()
     st.title("Cartões")
+    st.write("Cadastre e gerencie seus cartões de crédito e débito para controlar limites e datas de vencimento.")
     carregar_pagina()

@@ -1,12 +1,11 @@
 from typing import Literal
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
-from datetime import date
 
 
 class CartaoCreate(BaseModel):
     nome: str = Field(min_length=2, max_length=20)
-    vencimento: date
+    vencimento: int
     limite: Decimal | None = Field(default=None, ge=0)
     tipo: Literal["débito", "crédito"] = "crédito"
 
