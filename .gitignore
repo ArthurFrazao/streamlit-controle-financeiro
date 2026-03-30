@@ -21,3 +21,7 @@ data/
 
 # Streamlit-specific
 .streamlit/secrets.toml # Ignore sensitive information
+
+*.log
+log
+logs
