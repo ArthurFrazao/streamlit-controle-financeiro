@@ -14,10 +14,9 @@ from src.schemas.categoria_schema import CategoriaCreate
 # KEYS DOS FORMULÁRIOS
 # =========================
 KEYS_FORM_CATEGORIA = (
-    "fixa_nome_input",
-    "fixa_vencimento_input",
-    "fixa_limite_input",
-    "fixa_tipo_input",
+    "categoria_input",
+    "orcamento_mensal_input",
+    "essencial_input",
 )
 
 
@@ -87,16 +86,17 @@ def carregar_botao_editar_categoria(col):
 # =========================
 @st.dialog("Adicionar nova categoria", dismissible=True, on_dismiss=fechar_formulario_adicionar_categoria)
 def renderizar_formulario_adicionar_categoria():
-    categoria = st.text_input("Categoria", placeholder="Nome da categoria")
+    categoria = st.text_input("Categoria", key="categoria_input", placeholder="Nome da categoria")
     orcamento_mensal = st.number_input(
         "Orçamento mensal (opcional)",
         min_value=0.0,
         step=0.01,
         format="%.2f",
         value=0.0,
+        key="orcamento_mensal_input"
     )
 
-    essencial = st.checkbox("Essencial")
+    essencial = st.checkbox("Essencial", key="essencial_input")
 
     col_confirmar, col_cancelar = st.columns(2)
 
@@ -149,8 +149,9 @@ def renderizar_formulario_editar_categoria():
 
         nome_categoria = st.text_input("Categoria", value=categoria["Categoria"], key="categoria_input",
                                        placeholder="Nome da categoria")
-        orcamento_mensal = st.number_input("Orçamento Mensal", value=float(categoria["Orçamento Mensal"]))
-        essencial = st.checkbox("Essencial", value=categoria["Essencial"])
+        orcamento_mensal = st.number_input("Orçamento Mensal", value=float(categoria["Orçamento Mensal"]),
+                                           key="orcamento_mensal_input")
+        essencial = st.checkbox("Essencial", value=categoria["Essencial"], key="essencial_input")
 
         col_editar, col_cancelar = st.columns(2)
 

@@ -55,7 +55,7 @@ def abrir_formulario_adicionar_cartao():
     st.session_state.mostrar_form_adicionar_cartao = True
 
 def abrir_formulario_editar_cartao():
-    reset_keys(*KEYS_FORM_CARTAO, "parc_despesa_select")
+    reset_keys(*KEYS_FORM_CARTAO, "fixa_cartao_select")
     st.session_state.mostrar_form_editar_cartao = True
 
 # =========================
@@ -148,7 +148,7 @@ def renderizar_formulario_editar_cartao():
         opcoes_tipo = ["débito", "crédito"]
         nome = st.text_input("Nome", value=cartao["Nome"], key="fixa_nome_input", placeholder="Nome do cartão")
         vencimento = st.number_input("Vencimento", value=cartao["Vencimento"], key="fixa_vencimento_input")
-        limite = st.number_input("Limite", value=float(cartao["Limite"]), key="fixa_valor_input")
+        limite = st.number_input("Limite", value=float(cartao["Limite"]), key="fixa_limite_input")
         tipo = st.selectbox(
             "Tipo",
             options=opcoes_tipo,
